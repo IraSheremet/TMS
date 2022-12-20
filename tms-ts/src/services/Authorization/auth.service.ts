@@ -12,6 +12,7 @@ export default class AuthService {
             .then((response) => {
                 if (response.data.access) {
                     localStorage.setItem("currentUsername", username)
+                    localStorage.setItem("currentPassword", password)
                     localStorage.setItem("accessToken", response.data.access)
                     localStorage.setItem("refreshToken", response.data.refresh)
                 }
@@ -33,7 +34,9 @@ export default class AuthService {
         axios.get(API_URL + "logout/", {headers: authHeader(), params: {"token": localStorage.getItem('token')}})
             .then(() => {
             })
+        localStorage.removeItem("currentUsername")
         localStorage.removeItem("accessToken")
+        localStorage.removeItem("refreshToken")
     }
 
     static getCurrentAccessToken() {
