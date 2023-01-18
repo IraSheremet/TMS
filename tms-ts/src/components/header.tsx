@@ -12,10 +12,11 @@ import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import {NotificationsActive} from "@mui/icons-material";
+import AuthService from "../services/Authorization/auth.service";
 
-const settings = [['Профиль', "/"], ['Настройки', "/"], ['Выход', "/login"]];
+const buttons = [['Тест-кейсы', "/testcases"], ['Тест-планы', "/testplans"]];
 
-const Header = () => {
+const Header: React.FC = () => {
     const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null);
     const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(null);
 
@@ -31,9 +32,43 @@ const Header = () => {
         setAnchorElNav(null);
     };
 
+    const handleCloseNavMenuAndNavigate = (href: string) => {
+        setAnchorElNav(null);
+        window.location.assign(href);
+    };
+
     const handleCloseUserMenu = () => {
         setAnchorElUser(null);
     };
+
+    const handleCloseUserMenuAndNavigate = (href: string) => {
+        setAnchorElUser(null);
+        window.location.assign(href);
+    };
+
+    const handleLogout = () => {
+        AuthService.logout()
+    };
+
+    const isProjectOpen = window.location.pathname !== '/' && window.location.pathname !== '/login';
+
+    const buttonsAtNavBar = () => {
+        if (isProjectOpen) {
+            return (
+                buttons.map(([button_name, path], index) => (
+                    <Button
+                        key={index}
+                        sx={{
+                            color: 'white',
+                            fontWeight: 600
+                        }}
+                        href={path}
+                    >
+                        {button_name}
+                    </Button>
+                )))
+        }
+    }
 
     return (
         <AppBar position="static" sx={{
@@ -55,11 +90,26 @@ const Header = () => {
                             textDecoration: 'none',
                         }}
                     >
-                        TMS
+                        TestY
                     </Typography>
-
+                    {/*<Typography*/}
+                    {/*    variant="h6"*/}
+                    {/*    noWrap*/}
+                    {/*    component="a"*/}
+                    {/*    href="/"*/}
+                    {/*    sx={{*/}
+                    {/*        mr: 0,*/}
+                    {/*        display: {xs: 'none', md: 'flex'},*/}
+                    {/*        fontFamily: 'monospace',*/}
+                    {/*        fontWeight: 700,*/}
+                    {/*        color: 'inherit',*/}
+                    {/*        textDecoration: 'none',*/}
+                    {/*    }}*/}
+                    {/*>*/}
+                    {/*    {localStorage.getItem("currentProject")}*/}
+                    {/*</Typography>*/}
                     <Box sx={{flexGrow: 1, display: {xs: 'flex', md: 'none'}}}>
-                        <IconButton
+                        {isProjectOpen && <IconButton
                             size="large"
                             aria-label="account of current user"
                             aria-controls="menu-appbar"
@@ -68,8 +118,8 @@ const Header = () => {
                             color="inherit"
                         >
                             <MenuIcon/>
-                        </IconButton>
-                        <Menu
+                        </IconButton>}
+                        {isProjectOpen && <Menu
                             id="menu-appbar"
                             anchorEl={anchorElNav}
                             anchorOrigin={{
@@ -80,27 +130,40 @@ const Header = () => {
                                 vertical: 'top',
                                 horizontal: 'left',
                             }}
-                            open={Boolean(anchorElNav)}
+                            open={anchorElNav != null}
                             onClose={handleCloseNavMenu}
                             sx={{
                                 display: {xs: 'block', md: 'none'},
                             }}
                         >
-                            <MenuItem onClick={handleCloseNavMenu}>
+                            <MenuItem onClick={() => handleCloseNavMenuAndNavigate("/testcases")}>
                                 <Typography
                                     textAlign="center"
-                                    component="a"
-                                    href="/testcases"
+                                    // component="a"
+                                    // href="/testcases"
                                     sx={{
                                         color: 'inherit',
                                         textDecoration: 'none',
                                     }}
-                                >Тест-кейсы</Typography>
+                                >
+                                    Тест-кейсы
+                                </Typography>
                             </MenuItem>
-                            <MenuItem onClick={handleCloseNavMenu}>
-                                <Typography textAlign="center">Тест-планы</Typography>
+                            <MenuItem onClick={() => handleCloseNavMenuAndNavigate("/testplans")}>
+                                <Typography
+                                    textAlign="center"
+                                    component="a"
+                                    href="/testplans"
+                                    // component="a"
+                                    // href="/test-plans"
+                                    sx={{
+                                        color: 'inherit',
+                                        textDecoration: 'none',
+                                    }}>
+                                    Тест-планы
+                                </Typography>
                             </MenuItem>
-                        </Menu>
+                        </Menu>}
                     </Box>
                     <Typography
                         variant="h5"
@@ -118,26 +181,12 @@ const Header = () => {
                             textDecoration: 'none',
                         }}
                     >
-                        TMS
+                        TestY
                     </Typography>
                     <Box sx={{flexGrow: 1, display: {xs: 'none', md: 'flex'}, justifyContent: "center"}}>
-                        <Button
-                            sx={{
-                                color: 'white',
-                                fontWeight: 600
-                            }}
-                            href="/testcases"
-                        >
-                            Тест-кейсы
-                        </Button>
-                        <Button
-                            sx={{
-                                color: 'white',
-                                fontWeight: 600
-                            }}
-                        >
-                            Тест-планы
-                        </Button>
+                        <React.Fragment>
+                            {buttonsAtNavBar()}
+                        </React.Fragment>
                     </Box>
 
                     <Box sx={{flexGrow: 0}}>
@@ -162,14 +211,42 @@ const Header = () => {
                                 vertical: 'top',
                                 horizontal: 'right',
                             }}
-                            open={Boolean(anchorElUser)}
+                            open={anchorElUser != null}
                             onClose={handleCloseUserMenu}
                         >
-                            {settings.map(([setting_name, path]) => (
-                                <MenuItem key={setting_name}>
-                                    <Typography textAlign="center">{setting_name}</Typography>
-                                </MenuItem>
-                            ))}
+                            <MenuItem key={"Профиль"} onClick={() =>
+                                handleCloseUserMenuAndNavigate("/profile")
+                            }>
+                                <Typography
+                                    textAlign="center"
+                                    sx={{
+                                        color: 'inherit',
+                                        textDecoration: 'none',
+                                    }}
+                                > Профиль </Typography>
+                            </MenuItem>
+                            {/*<MenuItem key={"Настройки"} onClick={() =>*/}
+                            {/*    handleCloseUserMenuAndNavigate("/settings")*/}
+                            {/*}>*/}
+                            {/*    <Typography*/}
+                            {/*        textAlign="center"*/}
+                            {/*        sx={{*/}
+                            {/*            color: 'inherit',*/}
+                            {/*            textDecoration: 'none',*/}
+                            {/*        }}*/}
+                            {/*    > Настройки </Typography>*/}
+                            {/*</MenuItem>*/}
+                            <MenuItem key={"Выйти"} onClick={handleLogout}>
+                                <Typography
+                                    textAlign="center"
+                                    component="a"
+                                    href={"/login"}
+                                    sx={{
+                                        color: 'inherit',
+                                        textDecoration: 'none',
+                                    }}
+                                > Выход </Typography>
+                            </MenuItem>
                         </Menu>
                     </Box>
                 </Toolbar>

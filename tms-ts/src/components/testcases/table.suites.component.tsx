@@ -1,47 +1,58 @@
 import {
-    Grid, Paper, TableContainer, Table, TableBody,
-    TableCell, TableRow, Collapse, IconButton, Chip, tableCellClasses, Checkbox
+    Table,
+    TableCell,
+    Collapse,
+    IconButton,
+    Checkbox,
+    Link,
+    Box
 } from "@mui/material";
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import React from "react";
+import React, {useEffect, useMemo, useState} from "react";
+import useStyles from "../../styles/styles";
+import {myCase, suite, treeSuite} from "./suites.component";
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import DetailedCaseInfo from "./detailed.case.info.component";
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import DeletionDialogElement from "./deletion.dialog.element.component";
+import DeletionDialogElements from "./deletion.dialog.elements.component";
+import SplitterLayout from 'react-splitter-layout';
+import 'react-splitter-layout/lib/index.css';
+import useStylesTestCases from "./styles.testcases"
+import SuiteCaseService from "../../services/suite.case.service";
 
-function createSuite(
-    name: string,
-    cases: [{ name: string; tags: string; status: string }, { name: string; tags: string; status: string }],
-    suites?: any
-) {
-    return {
-        name,
-        cases,
-        suites,
-    };
-}
-
-function Row(props: { row: ReturnType<typeof createSuite>, selected: readonly string[], setSelected: (array: readonly string[]) => void }) {
-    const {row, selected, setSelected} = props;
-    const [open, setOpen] = React.useState(false);
-    // const [selected, setSelected] = React.useState<readonly string[]>([]);
-
-    const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.checked) {
-            const newSelected = row.cases.map((n) => n.name);
-            setSelected(newSelected);
-            return;
-        }
-        setSelected([]);
-    };
-
-    const isSelected = (name: string) => {
-        return selected.indexOf(name) !== -1
-    };
-    console.log(selected)
-    const handleClick = (event: React.MouseEvent<unknown>, name: string) => {
-        const selectedIndex = selected.indexOf(name);
-        let newSelected: readonly string[] = [];
+function TableRowCase(props: {
+    row: treeSuite, setShowCreationCase: (show: boolean) => void,
+    setSelectedSuiteCome: (selectedSuite: { id: number, name: string } | null) => void,
+    setDetailedCaseInfo: (myCase: { show: boolean, myCase: myCase }) => void,
+    detailedCaseInfo: { show: boolean, myCase: myCase }, setInfoCaseForEdit: (myCase: myCase) => void,
+    onecase: myCase,
+    selected: number [], setSelected: (ids: number[]) => void,
+    setTreeSuites: (treeSuites: treeSuite[]) => void,
+    setOpenDialogDeletion: (show: boolean) => void,
+    setComponentForDeletion: (component: { type: string, id: number }) => void,
+    classesTableSuitesCases: any
+}) {
+    const {
+        row,
+        setShowCreationCase,
+        setSelectedSuiteCome,
+        setDetailedCaseInfo,
+        setInfoCaseForEdit,
+        onecase,
+        selected,
+        setSelected,
+        setOpenDialogDeletion,
+        setComponentForDeletion,
+        classesTableSuitesCases
+    } = props;
+    const handleClick = (event: React.MouseEvent<unknown>, id: number) => {
+        const selectedIndex = selected.indexOf(id);
+        let newSelected: number[] = [];
 
         if (selectedIndex === -1) {
-            newSelected = newSelected.concat(selected, name);
+            newSelected = newSelected.concat(selected, id);
         } else if (selectedIndex === 0) {
             newSelected = newSelected.concat(selected.slice(1));
         } else if (selectedIndex === selected.length - 1) {
@@ -52,195 +63,462 @@ function Row(props: { row: ReturnType<typeof createSuite>, selected: readonly st
                 selected.slice(selectedIndex + 1),
             );
         }
-
         setSelected(newSelected);
     };
 
     return (
+        <tr
+            className={classesTableSuitesCases.tableRow}
+        >
+            <td className={classesTableSuitesCases.cellForCheckBoxAndId}>
+                <Checkbox
+                    className={classesTableSuitesCases.checkBox}
+                    onClick={(event) => handleClick(event, onecase.id)}
+                    color="primary"
+                    checked={selected.indexOf(onecase.id) !== -1}
+                />
+            </td>
+            <TableCell component="th"
+                       scope="row"
+                       padding="none">
+                {onecase.id}
+            </TableCell>
+            <TableCell className={classesTableSuitesCases.caseNameCell}>
+                {onecase.name}
+            </TableCell>
+            <td className={classesTableSuitesCases.deleteEditShowCaseCell}>
+                <div id="gridEditDelete" className={classesTableSuitesCases.gridEditDelete}>
+                    <IconButton size={"small"} onClick={() => {
+                        setComponentForDeletion({type: "case", id: onecase.id})
+                        setOpenDialogDeletion(true)
+                    }}>
+                        <DeleteIcon fontSize={"small"}/>
+                    </IconButton>
+                    <IconButton size={"small"} onClick={() => {
+                        setShowCreationCase(true)
+                        setSelectedSuiteCome({id: row.id, name: row.name})
+                        setInfoCaseForEdit(onecase)
+                    }}>
+                        <EditIcon fontSize={"small"}/>
+                    </IconButton>
+                </div>
+                <div id={onecase.id.toString() + "Arrow"}>
+                    <IconButton size={"small"} onClick={() => {
+                        setDetailedCaseInfo({
+                            show: true,
+                            myCase: onecase
+                        })
+                    }}>
+                        <KeyboardArrowRightIcon/>
+                    </IconButton>
+                </div>
+            </td>
+        </tr>)
+}
+
+function Row(props: {
+    row: treeSuite, setShowCreationCase: (show: boolean) => void, setShowCreationSuite: (show: boolean) => void,
+    setSelectedSuiteCome: (selectedSuite: { id: number, name: string } | null) => void, treeSuitesOpenMap: Map<number, boolean>,
+    setTreeSuitesOpenMap: (newMap: (prev: Map<number, boolean>) => any) => void, setDetailedCaseInfo: (myCase: { show: boolean, myCase: myCase }) => void,
+    detailedCaseInfo: { show: boolean, myCase: myCase }, setInfoCaseForEdit: (myCase: myCase) => void,
+    setTreeSuites: (treeSuites: treeSuite[]) => void, selectedCases: number[], setSelectedCases: (cases: number[]) => void,
+    setOpenDialogDeletion: (show: boolean) => void,
+    setComponentForDeletion: (component: { type: string, id: number }) => void,
+    classesTableSuitesCases: any, setInfoSuiteForEdit: (suite: { id: number, name: string }) => void,
+}) {
+    const {
+        row,
+        setShowCreationCase,
+        setShowCreationSuite,
+        setSelectedSuiteCome,
+        treeSuitesOpenMap,
+        setTreeSuitesOpenMap,
+        setDetailedCaseInfo,
+        detailedCaseInfo,
+        setInfoCaseForEdit,
+        setTreeSuites,
+        selectedCases,
+        setSelectedCases,
+        setOpenDialogDeletion,
+        setComponentForDeletion,
+        classesTableSuitesCases,
+        setInfoSuiteForEdit
+    } = props;
+    const [localOpen, setLocalOpen] = React.useState<boolean | undefined>(true);
+
+    const checkIfAllSelected = () => {
+        if (row.test_cases.length > 0) {
+            for (let i = 0; i < row.test_cases.length; i++) {
+                if (selectedCases.indexOf(row.test_cases[i].id) === -1) {
+                    return false
+                }
+            }
+            return true
+        }
+        return false
+    };
+
+    const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const caseIdsInCurrentRow = row.test_cases.map((onecase) => onecase.id)
+        if (event.target.checked) {
+            const newSelected = caseIdsInCurrentRow.filter((caseid) => selectedCases.indexOf(caseid) === -1)
+            setSelectedCases(newSelected.concat(selectedCases))
+            return;
+        } else {
+            const newSelected = selectedCases.filter((caseid) => caseIdsInCurrentRow.indexOf(caseid) === -1)
+            setSelectedCases(newSelected)
+        }
+    };
+
+    useEffect(() => {
+        if (treeSuitesOpenMap.get(row.id) === undefined) {
+            setTreeSuitesOpenMap(prev => (prev.set(row.id, true)))
+            setLocalOpen(true)
+        } else {
+            setLocalOpen(treeSuitesOpenMap.get(row.id))
+        }
+    }, [treeSuitesOpenMap])
+
+    const setOpenClose = () => {
+        const flag = treeSuitesOpenMap.get(row.id)
+        setTreeSuitesOpenMap(prev => (prev.set(row.id, !flag)))
+        setLocalOpen(!flag)
+    }
+
+    return (
         <React.Fragment>
-            <TableRow>
-                <TableCell colSpan={4}>
-                    <Grid sx={{display: "flex", flexDirection: "row"}}>
-                        <IconButton
-                            style={{marginLeft: 9}}
-                            aria-label="expand row"
-                            size="small"
-                            onClick={() => setOpen(!open)}
-                        >
-                            {open ? <KeyboardArrowUpIcon/> : <KeyboardArrowDownIcon/>}
+            <tr>
+                <td className={classesTableSuitesCases.cellSuiteChip} colSpan={4}>
+                    <div className={classesTableSuitesCases.suiteNameGrid}
+                         id={row.id.toString()}>
+                        <div className={classesTableSuitesCases.suiteChip} onClick={setOpenClose}>
+                            <KeyboardArrowUpIcon sx={{
+                                transform: localOpen ? 'rotate(0deg)' : 'rotate(180deg)',
+                                transition: '0.2s', marginRight: 0.6
+                            }}/>
+                            {row.name}
+                        </div>
+                        <IconButton size={"small"} onClick={() => {
+                            SuiteCaseService.getSuiteById(row.id).then((response) => {
+                                if (response.data.parent) {
+                                    SuiteCaseService.getSuiteById(response.data.parent).then((response) => {
+                                        setSelectedSuiteCome({id: response.data.id, name: response.data.name})
+                                        setShowCreationSuite(true)
+                                    }).catch((e) => {
+                                        console.log(e)
+                                    })
+                                } else {
+                                    setSelectedSuiteCome(null)
+                                    setShowCreationSuite(true)
+                                }
+                            }).catch((e) => {
+                                console.log(e)
+                            })
+                            setInfoSuiteForEdit({id: row.id, name: row.name})
+                        }}>
+                            <EditIcon fontSize={"small"}/>
                         </IconButton>
-                        <Chip style={{marginTop: 7}} label={row.name}/>
+                        <IconButton size={"small"} onClick={() => {
+                            setComponentForDeletion({type: "suite", id: row.id})
+                            setOpenDialogDeletion(true)
+                        }}>
+                            <DeleteIcon fontSize={"small"}/>
+                        </IconButton>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td className={classesTableSuitesCases.tables}
+                    colSpan={4}>
+                    <Collapse
+                        in={(treeSuitesOpenMap.get(row.id) === undefined || treeSuitesOpenMap.get(row.id) === true)}
+                        mountOnEnter>
+                        <Table size="small">
+                            <tbody className={classesTableSuitesCases.headerTableBodyCases}>
+                            <tr>
+                                <td className={classesTableSuitesCases.cellForCheckBoxAndId}>
+                                    <Checkbox
+                                        className={classesTableSuitesCases.checkBox}
+                                        checked={checkIfAllSelected()}
+                                        onChange={(e) => handleSelectAllClick(e)}
+                                        color="primary"
 
-                    </Grid>
-                </TableCell>
-            </TableRow>
-            <TableRow>
-                <TableCell style={{paddingBottom: 0, paddingTop: 0, paddingRight: 0}} colSpan={4}>
-                    <Collapse in={open} timeout="auto" unmountOnExit>
-                            <Grid >
-                                <Table size="small">
-                                    <TableBody>
-                                        <TableRow style={{backgroundColor: "#eeeeee", border: '1px solid'}}>
-                                            <TableCell style={{width: "1%"}}>
-                                                <Checkbox
-                                                    indeterminate={selected.length > 0 && selected.length < row.cases.length}
-                                                    checked={selected.length > 0 && selected.length === row.cases.length}
-                                                    onChange={(e) => handleSelectAllClick(e)}
-                                                    color="primary"
-
-                                                />
-                                            </TableCell>
-                                            <TableCell component="th"
-                                                // id={`enhanced-table-checkbox-${index}`}
-                                                       scope="row"
-                                                       padding="none">Название</TableCell>
-                                            <TableCell>Тэги</TableCell>
-                                            <TableCell>Статус</TableCell>
-                                        </TableRow>
-                                    </TableBody>
-
-                                    <TableBody sx={{
-                                        border: '1px solid',
-                                    }}>
-                                        {row.cases.map((onecase, index) => (
-                                            <TableRow key={index}>
-                                                <TableCell>
-                                                    <Checkbox
-                                                        onClick={(event) => handleClick(event, onecase.name)}
-                                                        color="primary"
-                                                        checked={isSelected(onecase.name)}
-                                                        // inputProps={{
-                                                        //     'aria-labelledby': `enhanced-table-checkbox-${index}`,
-                                                        // }}
-                                                    />
-                                                </TableCell>
-                                                <TableCell component="th"
-                                                    // id={`enhanced-table-checkbox-${index}`}
-                                                           scope="row"
-                                                           padding="none">
-                                                    {onecase.name}
-                                                </TableCell>
-                                                <TableCell>{onecase.tags}</TableCell>
-                                                <TableCell>{onecase.status}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-
-                                    {row && row.suites &&
-                                    <TableBody>
-                                        {row.suites.map((suite: any, index: number) => (
-                                            <Row key={index} row={suite} selected={selected} setSelected={setSelected}/>
-                                        ))}
-                                    </TableBody>}
-                                </Table>
-                                {/*</TableContainer>*/}
-                            </Grid>
-
+                                    />
+                                </td>
+                                <TableCell component="th"
+                                           scope="row"
+                                           padding="none"
+                                           className={classesTableSuitesCases.cellForCheckBoxAndId}>ID</TableCell>
+                                <TableCell colSpan={2}>Название</TableCell>
+                            </tr>
+                            </tbody>
+                            <tbody className={classesTableSuitesCases.tableForCases}>
+                            {row.test_cases.map((onecase) => (
+                                <TableRowCase key={onecase.id} onecase={onecase} row={row}
+                                              selected={selectedCases}
+                                              detailedCaseInfo={detailedCaseInfo}
+                                              setDetailedCaseInfo={setDetailedCaseInfo}
+                                              setInfoCaseForEdit={setInfoCaseForEdit}
+                                              setSelected={setSelectedCases}
+                                              setSelectedSuiteCome={setSelectedSuiteCome}
+                                              setShowCreationCase={setShowCreationCase}
+                                              setTreeSuites={setTreeSuites}
+                                              setOpenDialogDeletion={setOpenDialogDeletion}
+                                              setComponentForDeletion={setComponentForDeletion}
+                                              classesTableSuitesCases={classesTableSuitesCases}
+                                />
+                            ))}
+                            </tbody>
+                            <tbody>
+                            <tr>
+                                <td colSpan={4}>
+                                    <div className={classesTableSuitesCases.addingCaseSuite}>
+                                        <Link component="button" onClick={() => {
+                                            setShowCreationCase(true)
+                                            setSelectedSuiteCome({id: row.id, name: row.name})
+                                        }}>
+                                            Добавить тест-кейс
+                                        </Link>
+                                        <Link underline="none">&nbsp;&nbsp;|&nbsp;&nbsp;</Link>
+                                        <Link component="button"
+                                              onClick={() => {
+                                                  setShowCreationSuite(true)
+                                                  setSelectedSuiteCome({id: row.id, name: row.name})
+                                              }}>
+                                            Добавить сьюту
+                                        </Link>
+                                    </div>
+                                </td>
+                            </tr>
+                            </tbody>
+                            {row && row.children &&
+                            <tbody className={classesTableSuitesCases.childTable}>
+                            {row.children.map((suite: any) => (
+                                <Row key={suite.id} row={suite}
+                                     setShowCreationCase={setShowCreationCase}
+                                     setShowCreationSuite={setShowCreationSuite}
+                                     setSelectedSuiteCome={setSelectedSuiteCome}
+                                     treeSuitesOpenMap={treeSuitesOpenMap}
+                                     setTreeSuitesOpenMap={setTreeSuitesOpenMap}
+                                     detailedCaseInfo={detailedCaseInfo}
+                                     setDetailedCaseInfo={setDetailedCaseInfo}
+                                     setInfoCaseForEdit={setInfoCaseForEdit}
+                                     setTreeSuites={setTreeSuites}
+                                     selectedCases={selectedCases}
+                                     setSelectedCases={setSelectedCases}
+                                     setOpenDialogDeletion={setOpenDialogDeletion}
+                                     setComponentForDeletion={setComponentForDeletion}
+                                     classesTableSuitesCases={classesTableSuitesCases}
+                                     setInfoSuiteForEdit={setInfoSuiteForEdit}
+                                />
+                            ))}
+                            </tbody>
+                            }
+                        </Table>
                     </Collapse>
-                </TableCell>
-            </TableRow>
+                </td>
+            </tr>
         </React.Fragment>
     );
 }
 
-const TableSuites = (props: { selected: readonly string[], setSelected: (array: readonly string[]) => void }) => {
-    const {selected, setSelected} = props;
-    // const suiteChildChildChildChild = [createSuite('Уведомления на почту', [
-    //     {
-    //         name: 'Добавление пользователя',
-    //         tags: 'СРОЧНО',
-    //         status: 'UNTESTED',
-    //     },
-    //     {
-    //         name: 'Удаление пользователя',
-    //         tags: 'НЕ НАДО ЭТО ТЕСТИРОВАТЬ',
-    //         status: 'RETEST',
-    //     }
-    // ],),]
-    // const suiteChildChildChild = [createSuite('Уведомления на почту', [
-    //     {
-    //         name: 'Добавление пользователя',
-    //         tags: 'СРОЧНО',
-    //         status: 'UNTESTED',
-    //     },
-    //     {
-    //         name: 'Удаление пользователя',
-    //         tags: 'НЕ НАДО ЭТО ТЕСТИРОВАТЬ',
-    //         status: 'RETEST',
-    //     }
-    // ],suiteChildChildChildChild,),]
-    const suiteChildChild = [createSuite('Уведомления на почту', [
-        {
-            name: 'Добавление пользователя',
-            tags: 'СРОЧНО',
-            status: 'UNTESTED',
-        },
-        {
-            name: 'Удаление пользователя',
-            tags: 'НЕ НАДО ЭТО ТЕСТИРОВАТЬ',
-            status: 'RETEST',
-        }
-    ],),]
-    const suiteChild = [createSuite('Уведомления на почту', [
-        {
-            name: 'Добавление пользователя2',
-            tags: 'СРОЧНО',
-            status: 'UNTESTED',
-        },
-        {
-            name: 'Удаление пользователя2',
-            tags: 'НЕ НАДО ЭТО ТЕСТИРОВАТЬ',
-            status: 'RETEST',
-        }
-    ], suiteChildChild),]
-    const suites = [
-            createSuite('Система уведомлений',
-                [
-                    {
-                        name: 'Добавление пользователя3',
-                        tags: 'СРОЧНО',
-                        status: 'UNTESTED',
-                    },
-                    {
-                        name: 'Удаление пользователя3',
-                        tags: 'НЕ НАДО ЭТО ТЕСТИРОВАТЬ',
-                        status: 'RETEST',
-                    }
-                ], suiteChild
-            ),
-            createSuite('Регистрация пользователя',
-                [
-                    {
-                        name: 'Сохранение пользователя в БД',
-                        tags: 'СРОЧНО',
-                        status: 'UNTESTED',
-                    },
-                    {
-                        name: 'Удаление пользователя из БД',
-                        tags: 'НЕ НАДО ЭТО ТЕСТИРОВАТЬ',
-                        status: 'RETEST',
-                    }
-                ], suiteChild
-            ),
-        ]
-    ;
-    return (
-        <Grid>
-            <TableContainer component={Paper} style={{maxWidth: "95%", margin: 30, padding: 20}}>
-                <Table aria-label="collapsible table" sx={{
-                    [`& .${tableCellClasses.root}`]: {
-                        borderBottom: "none",
+const TableSuites = (props: {
+    selected: readonly string[], setSelected: (array: readonly string[]) => void,
+    setShowCreationCase: (show: boolean) => void, setShowCreationSuite: (show: boolean) => void,
+    setSelectedSuiteCome: (selectedSuite: { id: number, name: string } | null) => void,
+    setInfoCaseForEdit: (myCase: myCase) => void, setInfoSuiteForEdit: (suite: { id: number, name: string }) => void,
+    setDetailedCaseInfo: (myCase: { show: boolean, myCase: myCase }) => void,
+    detailedCaseInfo: { show: boolean, myCase: myCase }, lastEditCase: number,
+    setLastEditCase: (id: number) => void,
+    setTreeSuites: (treeSuites: treeSuite[]) => void;
+    selectedSuiteForTreeView: treeSuite,
+    setSelectedSuiteForTreeView: (suite: treeSuite) => void,
+}) => {
+    const classes = useStyles()
+    const {
+        setShowCreationCase,
+        setShowCreationSuite,
+        setSelectedSuiteCome,
+        setInfoCaseForEdit,
+        setDetailedCaseInfo,
+        detailedCaseInfo,
+        lastEditCase,
+        setLastEditCase,
+        setTreeSuites,
+        selectedSuiteForTreeView,
+        setSelectedSuiteForTreeView,
+        setInfoSuiteForEdit
+    } = props;
+    const [treeSuitesOpenMap, setTreeSuitesOpenMap] = useState(new Map())
+    const [shownCase, setShownCase] = useState<{ show: boolean, myCaseId: number }>({show: false, myCaseId: -1})
+    const [selectedCases, setSelectedCases] = React.useState<number []>([]);
+    const [openDialogDeletion, setOpenDialogDeletion] = useState(false);
+    const [openDialogDeletionElements, setOpenDialogDeletionElements] = useState(false);
+    const [componentForDeletion, setComponentForDeletion] = useState<{ type: string, id: number }>({type: "", id: -1})
 
+    const openAll = () => {
+        let newMap = new Map()
+        const setAllInTrue = (childrenSuitesArr: treeSuite[]) => {
+            childrenSuitesArr.map((suite) => {
+                newMap.set(suite.id, true)
+                if (suite.children.length > 0) {
+                    setAllInTrue(suite.children)
+                }
+            })
+        }
+        newMap.set(selectedSuiteForTreeView.id, true)
+        setAllInTrue(selectedSuiteForTreeView.children)
+        setTreeSuitesOpenMap(newMap)
+    }
+
+    const closeAll = () => {
+        let newMap = new Map()
+        const setAllInFalse = (childrenSuitesArr: treeSuite[]) => {
+            childrenSuitesArr.map((suite) => {
+                newMap.set(suite.id, false)
+                if (suite.children.length > 0) {
+                    setAllInFalse(suite.children)
+                }
+            })
+        }
+        newMap.set(selectedSuiteForTreeView.id, false)
+        setAllInFalse(selectedSuiteForTreeView.children)
+        setTreeSuitesOpenMap(newMap)
+    }
+    const classesTableSuitesCases = useStylesTestCases()
+
+    const memoizedValue = useMemo(() => <table
+        className={classesTableSuitesCases.mainTable}>
+        <tbody>
+        <Row key={selectedSuiteForTreeView.id} row={selectedSuiteForTreeView}
+             setShowCreationCase={setShowCreationCase}
+             setShowCreationSuite={setShowCreationSuite}
+             setSelectedSuiteCome={setSelectedSuiteCome}
+             treeSuitesOpenMap={treeSuitesOpenMap}
+             setTreeSuitesOpenMap={setTreeSuitesOpenMap}
+             detailedCaseInfo={detailedCaseInfo}
+             setDetailedCaseInfo={setDetailedCaseInfo}
+             setInfoCaseForEdit={setInfoCaseForEdit}
+             setInfoSuiteForEdit={setInfoSuiteForEdit}
+             setTreeSuites={setTreeSuites}
+             selectedCases={selectedCases}
+             setSelectedCases={setSelectedCases}
+             setOpenDialogDeletion={setOpenDialogDeletion}
+             setComponentForDeletion={setComponentForDeletion}
+             classesTableSuitesCases={classesTableSuitesCases}
+        />
+        </tbody>
+    </table>, [selectedSuiteForTreeView, treeSuitesOpenMap, selectedCases]);
+    useEffect(() => {
+        if (detailedCaseInfo.show) {
+            if (shownCase.show && detailedCaseInfo.myCase.id === shownCase.myCaseId && lastEditCase !== detailedCaseInfo.myCase.id) {
+                document.getElementById(shownCase.myCaseId + "Arrow")!.style.transform = ""
+                setDetailedCaseInfo({
+                    show: false, myCase: {
+                        id: -1,
+                        name: "",
+                        suite: -1,
+                        scenario: "",
+                        project: -1,
+                        setup: "",
+                        teardown: "",
+                        estimate: -1
                     }
-                }}>
-                    <TableBody>
-                        {suites.map((suite, index) => (
-                            <Row key={index} row={suite} selected={selected} setSelected={setSelected}/>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-        </Grid>
+                })
+                setShownCase({show: false, myCaseId: -1})
+            } else if (lastEditCase !== detailedCaseInfo.myCase.id) {
+                document.getElementById(detailedCaseInfo.myCase.id + "Arrow")!.style.transform = 'rotate(180deg)'
+                if (shownCase.show) {
+                    document.getElementById(shownCase.myCaseId + "Arrow")!.style.transform = ""
+                }
+                setShownCase({show: true, myCaseId: detailedCaseInfo.myCase.id})
+            } else {
+                setLastEditCase(-1)
+            }
+        } else if (shownCase.myCaseId >= 0) {
+            document.getElementById(shownCase.myCaseId + "Arrow")!.style.transform = ""
+            setDetailedCaseInfo({
+                show: false, myCase: {
+                    id: -1,
+                    name: "",
+                    suite: -1,
+                    scenario: "",
+                    project: -1,
+                    setup: "",
+                    teardown: "",
+                    estimate: -1
+                }
+            })
+            setShownCase({show: false, myCaseId: -1})
+        }
+    }, [detailedCaseInfo])
+
+    return (
+
+        <SplitterLayout customClassName={classes.splitter} primaryIndex={0} primaryMinSize={40} secondaryMinSize={35}
+                        percentage>
+            <div>
+                <Box className={classesTableSuitesCases.box}>
+                    <div
+                        style={{marginLeft: 10, marginTop: 5}}
+                    >
+                        <Link
+                            sx={{maxHeight: "50%"}}
+                            component="button" onClick={() => {
+                            openAll()
+                        }}>
+                            Раскрыть все
+                        </Link>
+                        <Link underline="none">&nbsp;&nbsp;|&nbsp;&nbsp;</Link>
+                        <Link
+                            sx={{maxHeight: "50%"}}
+                            component="button"
+                            onClick={() => {
+                                closeAll()
+                            }}>
+                            Закрыть все
+                        </Link>
+                        <IconButton size={"small"} disabled={!(selectedCases.length > 0)} onClick={() => {
+                            setOpenDialogDeletionElements(true)
+                        }}
+                                    sx={{marginLeft: 1}}
+                        >
+                            <DeleteIcon fontSize={"small"}/>
+                        </IconButton>
+                    </div>
+                </Box>
+                <div className={classesTableSuitesCases.gridForMainTable}>
+                    {memoizedValue}
+                </div>
+                <DeletionDialogElement openDialogDeletion={openDialogDeletion}
+                                       setOpenDialogDeletion={setOpenDialogDeletion}
+                                       componentForDeletion={componentForDeletion}
+                                       setTreeSuites={setTreeSuites}
+                                       selectedForDeletion={selectedCases}
+                                       setSelectedForDeletion={setSelectedCases}
+                                       selectedSuiteForTreeView={selectedSuiteForTreeView}
+                                       setSelectedSuiteForTreeView={setSelectedSuiteForTreeView}
+                                       detailedCaseInfo={detailedCaseInfo}
+                                       setDetailedCaseInfo={setDetailedCaseInfo}
+                />
+                <DeletionDialogElements openDialogDeletion={openDialogDeletionElements}
+                                        setOpenDialogDeletion={setOpenDialogDeletionElements}
+                                        selectedForDeletion={selectedCases}
+                                        setTreeSuites={setTreeSuites}
+                                        setSelectedForDeletion={setSelectedCases}
+                                        selectedSuiteForTreeView={selectedSuiteForTreeView}
+                                        setSelectedSuiteForTreeView={setSelectedSuiteForTreeView}
+                                        detailedCaseInfo={detailedCaseInfo}
+                                        setDetailedCaseInfo={setDetailedCaseInfo}
+                />
+            </div>
+            {detailedCaseInfo.show &&
+            <div>
+                <DetailedCaseInfo myCase={detailedCaseInfo.myCase} setDetailedCaseInfo={setDetailedCaseInfo}/>
+            </div>
+            }
+        </SplitterLayout>
+
     );
 }
 export default TableSuites

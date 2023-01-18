@@ -5,22 +5,28 @@ import Typography from '@material-ui/core/Typography';
 import Container from '@material-ui/core/Container';
 import {Card} from "@material-ui/core";
 import useStyles from "../styles/styles";
+import AuthService from "../services/Authorization/auth.service";
 
 const Login: React.FC = () => {
     const classes = useStyles()
-    const [username, setUsername] = useState ("")
-    const [password, setPassword] = useState ("")
-    const [message, setMessage]   = useState ("")
+    const [username, setUsername] = useState("")
+    const [password, setPassword] = useState("")
+    const [message, setMessage] = useState("")
 
-    const onChangeUsername =
-        (e: React.ChangeEvent<HTMLInputElement>) => {
-            setUsername(e.target.value)
+    const onChangeUsername = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setUsername(e.target.value)
     };
 
-    const onChangePassword =
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    const onChangePassword = (e: React.ChangeEvent<HTMLInputElement>) => {
         setPassword(e.target.value)
     };
+
+    const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        AuthService.login(username, password)
+            .then(() => window.location.assign("/"))
+            .catch(() => setMessage("Введен неверный логин или пароль"))
+    }
 
     return (
         <Container component="main" maxWidth="xs">
@@ -30,7 +36,7 @@ const Login: React.FC = () => {
                         Вход
                     </Typography>
                     <form className={classes.formLogin}
-                          // onSubmit={handleLogin}
+                          onSubmit={handleLogin}
                     >
                         <TextField
                             className={classes.rootLogin}
@@ -62,6 +68,7 @@ const Login: React.FC = () => {
                         />
                         <Button
                             type="submit"
+                            // onClick={handleLogin}
                             fullWidth
                             variant="contained"
                             color="primary"
@@ -80,7 +87,7 @@ const Login: React.FC = () => {
                 </div>
             </Card>
         </Container>
-    );
+    )
 }
 
 export default Login
