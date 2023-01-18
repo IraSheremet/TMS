@@ -4,15 +4,43 @@ import {myCase} from "../components/testcases/suites.component";
 export default class SuiteCaseService {
 
     static getSuites() {
-        return axiosTMS.get("api/v1/suites/")
+        const projectId = JSON.parse(localStorage.getItem("currentProject") ?? '{"id" : null}').id
+        if (projectId) {
+            return axiosTMS.get("api/v1/suites/?project=" + projectId)
+        } else {
+            return axiosTMS.get("api/v1/suites/")
+        }
+    }
+
+    static getSuiteById(id: number) {
+        return axiosTMS.get("api/v1/suites/" + id + "/")
     }
 
     static getCases() {
-        return axiosTMS.get("api/v1/cases/")
+        const projectId = JSON.parse(localStorage.getItem("currentProject") ?? '{"id" : null}').id
+        if (projectId) {
+            return axiosTMS.get("api/v1/cases/?project=" + projectId)
+        } else {
+            return axiosTMS.get("api/v1/cases/")
+        }
+    }
+
+    static getTreeBySetSuite(id: number) {
+        const projectId = JSON.parse(localStorage.getItem("currentProject") ?? '{"id" : null}').id
+        if (projectId) {
+            return axiosTMS.get("api/v1/suites/" + id + "/?project=" + projectId + "&treeview=true")
+        } else {
+            return axiosTMS.get("api/v1/suites/" + id + "/?treeview=true")
+        }
     }
 
     static getTreeSuites() {
-        return axiosTMS.get("api/v1/suites/?treeview=true")
+        const projectId = JSON.parse(localStorage.getItem("currentProject") ?? '{"id" : null}').id
+        if (projectId) {
+            return axiosTMS.get("api/v1/suites/?project=" + projectId + "&treeview=true")
+        } else {
+            return axiosTMS.get("api/v1/suites/?treeview=true")
+        }
     }
 
     static async deleteCases(idCases: number[]) {
@@ -37,7 +65,11 @@ export default class SuiteCaseService {
         return axiosTMS.put("api/v1/cases/" + myCase.id + "/", myCase)
     }
 
-    static createSuite(suite: { parent: number | null; name: string }) {
+    static editSuite(suite: { id: number; parent: number | null; name: string; project: number }) {
+        return axiosTMS.put("api/v1/suites/" + suite.id + "/", suite)
+    }
+
+    static createSuite(suite: { parent: number | null; name: string; project: number }) {
         return axiosTMS.post("api/v1/suites/", suite)
     }
 }

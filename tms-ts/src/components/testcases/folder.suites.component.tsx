@@ -1,18 +1,18 @@
-import {Grid, IconButton, Input} from "@mui/material";
+import {IconButton, TextField} from "@mui/material";
 import Typography from '@mui/material/Typography';
 import React, {useEffect, useState} from "react";
-import {suite, treeSuite} from "./suites.component";
+import {treeSuite} from "./suites.component";
 import TreeView from "@mui/lab/TreeView";
 import TreeItem, {TreeItemContentProps, useTreeItem} from "@mui/lab/TreeItem";
-import SvgIcon, {SvgIconProps} from "@mui/material/SvgIcon";
+import SvgIcon from "@mui/material/SvgIcon";
 
 import {alpha, styled} from '@mui/material/styles';
-import {TreeItemProps, treeItemClasses} from '@mui/lab/TreeItem';
+import {TreeItemProps} from '@mui/lab/TreeItem';
 import clsx from 'clsx';
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 
-function MinusSquare(props: SvgIconProps) {
+function MinusSquare() {
     return (
         <SvgIcon fontSize="inherit" style={{width: 14, height: 14}}>
             {/* tslint:disable-next-line: max-line-length */}
@@ -22,7 +22,7 @@ function MinusSquare(props: SvgIconProps) {
     );
 }
 
-function PlusSquare(props: SvgIconProps) {
+function PlusSquare() {
     return (
         <SvgIcon fontSize="inherit" style={{width: 14, height: 14}}>
             {/* tslint:disable-next-line: max-line-length */}
@@ -32,7 +32,7 @@ function PlusSquare(props: SvgIconProps) {
     );
 }
 
-function CloseSquare(props: SvgIconProps) {
+function CloseSquare() {
     return (
         <SvgIcon
             className="close"
@@ -118,17 +118,17 @@ const CustomContent = React.forwardRef(function CustomContent(
 const StyledTreeItem = styled((props: TreeItemProps) => (
     <TreeItem ContentComponent={CustomContent} {...props}/>
 ))(({theme}) => ({
-    [`& .${treeItemClasses.iconContainer}`]: {
+    "& .MuiTreeItem-iconContainer": {
         '& .close': {
             opacity: 0.3,
         },
     },
-    [`& .${treeItemClasses.group}`]: {
+    "& .MuiTreeItem-group": {
         marginLeft: 15,
         paddingLeft: 2,
         borderLeft: `1px dashed ${alpha(theme.palette.text.primary, 0.4)}`,
     },
-    [`& .${treeItemClasses.root}`]: {
+    "& .MuiTreeItem-root": {
         marginTop: 3,
         marginBottom: 3,
     },
@@ -141,8 +141,8 @@ const Suite = (props: {
     return (
         <StyledTreeItem
             ContentComponent={CustomContent} label={row.name} nodeId={row.id.toString()}>
-            {row.children.map((suite: any, index: number) => (
-                <Suite key={index} row={suite} nodeId={index}
+            {row.children.map((suite: any) => (
+                <Suite key={suite.id} row={suite} nodeId={suite.id}
                 />
             ))}
         </StyledTreeItem>
@@ -150,10 +150,9 @@ const Suite = (props: {
 }
 
 const FolderSuites = (props: {
-    treeSuites: treeSuite[],
-    suites: suite []
+    selectedSuiteForTreeView: treeSuite | undefined
 }) => {
-    const {treeSuites, suites} = props;
+    const {selectedSuiteForTreeView} = props;
     const [expanded, setExpanded] = useState<string[]>([])
     const [selected, setSelected] = useState<string[]>([])
     const [currentSuiteNumber, setCurrentSuiteNumber] = useState<number>(0)
@@ -167,21 +166,50 @@ const FolderSuites = (props: {
 
     useEffect(() => {
         const suitesIdArray: string[] = []
-        suites.map((suite, index) => (
-            suitesIdArray.push(suite.id.toString())
-        ))
+        if (selectedSuiteForTreeView) {
+            const fillExpandedSuite = (childrenSuitesArr: treeSuite[]) => {
+                childrenSuitesArr.map((suite) => {
+                    if (suite.children.length > 0) {
+                        fillExpandedSuite(suite.children)
+                    }
+                    suitesIdArray.push(suite.id.toString())
+                })
+            }
+            suitesIdArray.push(selectedSuiteForTreeView.id.toString())
+            fillExpandedSuite(selectedSuiteForTreeView.children)
+        }
         setExpanded(suitesIdArray)
-    }, [suites]);
+    }, [selectedSuiteForTreeView]);
 
     const onChangeName = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        if (e.target.value) {
-            const foundSuites = suites.filter(suite => suite.name.toLowerCase().includes(e.target.value.toLowerCase()))
+        if (e.target.value && selectedSuiteForTreeView) {
+            const query = e.target.value.toLowerCase()
+            const foundSuites: treeSuite[] = []
+            const findSuitesByName = (childrenSuitesArr: treeSuite[]) => {
+                childrenSuitesArr.map((suite) => {
+                    if (suite.name.toLowerCase().includes(query)) {
+                        foundSuites.push(suite)
+                    }
+                    if (suite.children.length > 0) {
+                        findSuitesByName(suite.children)
+                    }
+                })
+            }
+            if (selectedSuiteForTreeView.name.toLowerCase().includes(query)) {
+                foundSuites.push(selectedSuiteForTreeView)
+            }
+            findSuitesByName(selectedSuiteForTreeView.children)
             const suitesIdArray: string[] = []
             let suitesHtmlElmArray: any[] = []
-            foundSuites.map((suite, index) => {
-                suitesIdArray.push(suite.id.toString())
-                suitesHtmlElmArray.push(document.getElementById(suite.id.toString() + "Folder"))
+
+            foundSuites.map((suite) => {
+                const foundElement = document.getElementById(suite.id.toString() + "Folder")
+                if (foundElement) {
+                    suitesIdArray.push(suite.id.toString())
+                    suitesHtmlElmArray.push(document.getElementById(suite.id.toString() + "Folder"))
+                }
             })
+
             suitesHtmlElmArray.sort(function (elm1, elm2) {
                 const elm1Y = elm1.getBoundingClientRect().y
                 const elm2Y = elm2.getBoundingClientRect().y
@@ -273,62 +301,67 @@ const FolderSuites = (props: {
             setCurrentSuiteNumber(totalSuitesNumber)
         }
     }
+
     return (
-        <Grid style={{
+
+        <div style={{
             height: "100%"
         }}>
-            <Grid style={{
-                height: "15%",
-                minHeight: "max-content",
-                margin: "15px 0px 0px 20px",
+            {selectedSuiteForTreeView !== undefined &&
+            <div style={{
+                height: "100%"
             }}>
-                <Grid>
-                    <Input
-                        id="nameCaseTextField"
-                        onChange={(content) => onChangeName(content)}
-                        autoComplete="off"
-                        style={{width: "95%"}}
-                        placeholder="Поиск..."
-                    />
-                </Grid>
-
-                {currentSuiteNumber != 0 &&
-                <Grid style={{display: "flex", flexDirection: "row", width: "100%", height: "35%", marginTop: 7}}>
-                    <IconButton style={{width: "8%", height: "100%"}} onClick={() => prevSuite()}>
-                        <KeyboardArrowLeftIcon/>
-                    </IconButton>
-                    <Grid style={{height: "100%"}}>{currentSuiteNumber} / {totalSuitesNumber}</Grid>
-                    <IconButton style={{width: "8%", height: "100%"}} onClick={() => nextSuite()}>
-                        <KeyboardArrowRightIcon/>
-                    </IconButton>
-                </Grid>}
-
-            </Grid>
-            <Grid style={{
-                backgroundColor: "white", borderRadius: 10, margin: "13px 13px 13px 13px ",
-                height: "100%", overflowY: "auto", overflowX: "auto"
-            }}>
-                <TreeView
-                    aria-label="customized"
-                    expanded={expanded}
-                    selected={selected}
-                    defaultCollapseIcon={<MinusSquare/>}
-                    defaultExpandIcon={<PlusSquare/>}
-                    defaultEndIcon={<CloseSquare/>}
-                    onNodeToggle={handleToggle}
-                    sx={{
-                        flexGrow: 1,
-                        margin: 1,
-                        textAlign: "left",
-                    }}
-                >
-                    {treeSuites.map((suite, index) => (
-                        <Suite key={index} row={suite} nodeId={index}
+                <div style={{
+                    height: "15%",
+                    minHeight: "max-content",
+                    margin: "15px 0px 0px 20px",
+                }}>
+                    <div>
+                        <TextField
+                            onChange={(content) => onChangeName(content)}
+                            autoComplete="off"
+                            style={{width: "95%"}}
+                            placeholder="Поиск..."
+                            variant={"outlined"}
                         />
-                    ))}
-                </TreeView>
-            </Grid>
-        </Grid>
+                    </div>
+
+                    {currentSuiteNumber != 0 &&
+                    <div style={{display: "flex", flexDirection: "row", width: "100%", height: "35%", marginTop: 7}}>
+                        <IconButton style={{width: "8%", height: "100%"}} onClick={() => prevSuite()}>
+                            <KeyboardArrowLeftIcon/>
+                        </IconButton>
+                        <div style={{height: "100%"}}>{currentSuiteNumber} / {totalSuitesNumber}</div>
+                        <IconButton style={{width: "8%", height: "100%"}} onClick={() => nextSuite()}>
+                            <KeyboardArrowRightIcon/>
+                        </IconButton>
+                    </div>}
+                </div>
+                <div style={{
+                    backgroundColor: "white", borderRadius: 10, margin: "13px 13px 13px 13px ",
+                    height: "100%", overflowY: "auto", overflowX: "auto"
+                }}>
+                    <TreeView
+                        aria-label="customized"
+                        expanded={expanded}
+                        selected={selected}
+                        defaultCollapseIcon={<MinusSquare/>}
+                        defaultExpandIcon={<PlusSquare/>}
+                        defaultEndIcon={<CloseSquare/>}
+                        onNodeToggle={handleToggle}
+                        sx={{
+                            flexGrow: 1,
+                            margin: 1,
+                            textAlign: "left",
+                        }}
+                    >
+                        <Suite key={selectedSuiteForTreeView.id} row={selectedSuiteForTreeView}
+                               nodeId={selectedSuiteForTreeView.id}
+                        />
+                    </TreeView>
+                </div>
+            </div>}
+        </div>
     );
 }
 export default FolderSuites
